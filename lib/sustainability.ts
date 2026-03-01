@@ -48,12 +48,6 @@ export interface SustainabilityMetrics {
   home: TeamSustainability;
   away: TeamSustainability;
 
-  // Game-level summary
-  leadSustainability: 'SUSTAINABLE' | 'MIXED' | 'UNSUSTAINABLE' | 'TIED';
-  expectedScoreDiff: number;   // home expected - away expected
-  luckDiff: number;            // home luck pts - away luck pts
-  processAdvantage: 'HOME' | 'AWAY' | 'EVEN';
-
   // 3PT shooting stats
   fg3Stats?: {
     home: { fg3Pct: number; fg3a: number; fg3m: number };
@@ -187,31 +181,9 @@ export function computeSustainability(
   const homeMetrics = computeTeam(home, homeScore, elapsedMins);
   const awayMetrics = computeTeam(away, awayScore, elapsedMins);
 
-  // Game-level summary
-  const expectedScoreDiff = round1(homeMetrics.expectedScore - awayMetrics.expectedScore);
-  const luckDiff = round1(homeMetrics.totalLuckPts - awayMetrics.totalLuckPts);
-
-  const processDelta = homeMetrics.processScore - awayMetrics.processScore;
-  const processAdvantage: SustainabilityMetrics['processAdvantage'] =
-    processDelta > 1 ? 'HOME' : processDelta < -1 ? 'AWAY' : 'EVEN';
-
-  // Lead sustainability: verdict of whichever team is leading
-  let leadSustainability: SustainabilityMetrics['leadSustainability'];
-  if (homeScore === awayScore) {
-    leadSustainability = 'TIED';
-  } else if (homeScore > awayScore) {
-    leadSustainability = homeMetrics.verdict;
-  } else {
-    leadSustainability = awayMetrics.verdict;
-  }
-
   return {
     home: homeMetrics,
     away: awayMetrics,
-    leadSustainability,
-    expectedScoreDiff,
-    luckDiff,
-    processAdvantage,
     fg3Stats: {
       home: { fg3Pct: home.fg3a > 0 ? round3(home.fg3m / home.fg3a) : 0, fg3a: home.fg3a, fg3m: home.fg3m },
       away: { fg3Pct: away.fg3a > 0 ? round3(away.fg3m / away.fg3a) : 0, fg3a: away.fg3a, fg3m: away.fg3m },

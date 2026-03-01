@@ -69,16 +69,12 @@ export interface GameOdds {
 export type SignalType =
   | 'QUALITY_EDGE'
   | 'DOG_PHYSICAL'
-  | 'COMBINED_DOG'
   | 'DOG_LEADING'
   | 'DOG_MEDIUM_FAV'
   | 'DOG_STRONG'
   | 'ANTI_FAV_HOT';
 
 export type BetType = 'ML' | 'SPREAD';
-
-// Kept for backward compat but no longer used by active signals
-export type CoilTier = 'ELITE' | 'STANDARD' | 'LOCKED' | 'WEAK';
 
 export type Urgency = 'DEVELOPING' | 'PRIME' | 'ACT_NOW' | 'CLOSING';
 
@@ -95,7 +91,6 @@ export interface Signal {
   signalCount: number;
 
   // Signal-specific data
-  coilTier?: CoilTier;
   starName?: string;
   starPts?: number;
   starExpected?: number;
@@ -153,7 +148,6 @@ export interface Bet {
   odds: number;
   amount: number;
   signalType: SignalType;
-  signalTier?: string;
   outcome: 'win' | 'loss' | 'push' | 'pending';
   payout?: number;
 }
