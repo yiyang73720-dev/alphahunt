@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { fetchScoreboard, fetchOdds, fetchBoxScore, teamAbbrFromName, TEAM_WIN_PCT } from '@/lib/nba-api';
+import { fetchScoreboard, fetchOdds, fetchBoxScore, teamAbbrFromName, TEAM_WIN_PCT, parseMinutes } from '@/lib/nba-api';
 import { calculateSignals, getElapsedMins } from '@/lib/signals';
 import { calculateDogSignals } from '@/lib/scanner/dog-signals';
 import { GameOdds } from '@/lib/types';
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
             topScorersMap[game.gameId] = allPlayers
               .sort((a, b) => b.points - a.points)
               .slice(0, 10)
-              .map((p) => ({ name: p.name, teamAbbr: p.teamAbbr, points: p.points, minutes: parseFloat(p.minutes) || 0 }));
+              .map((p) => ({ name: p.name, teamAbbr: p.teamAbbr, points: p.points, minutes: parseMinutes(p.minutes) }));
           }
 
           const signals = calculateSignals(games, oddsMap, topScorersMap, TEAM_WIN_PCT);

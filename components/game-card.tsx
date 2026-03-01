@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { NBAGame, Signal, GameOdds } from '@/lib/types';
+import type { TeamSustainability } from '@/lib/sustainability';
 
 function formatClock(period: number, clock: string): string {
   if (!clock || clock === 'PT00M00.00S') {
@@ -247,6 +249,9 @@ export default function GameCard({ game, signals, odds }: GameCardProps) {
         </div>
       )}
 
+      {/* Sustainability Panel (live games only) */}
+      {isLive && <SustainabilityPanel game={game} />}
+
       {/* Signal pills for multi-signal games */}
       {signals.length > 1 && (
         <div className="mt-2 flex flex-wrap gap-1">
@@ -266,6 +271,137 @@ export default function GameCard({ game, signals, odds }: GameCardProps) {
               </span>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ========================================
+// Game Insight Panel
+// ========================================
+
+function SustainabilityPanel({ game }: { game: NBAGame }) {
+  const sus = game.sustainability;
+  // Default expanded in Q1/Q2, collapsed Q3+
+  const [expanded, setExpanded] = useState(game.period <= 2);
+
+  if (!sus) {
+    if (game.homeTeam.stats && game.awayTeam.stats) {
+      return (
+        <div className="mt-3 pt-3 border-t border-[#2a2a3e]">
+          <div className="text-[10px] text-[#6b7280] text-center py-1">
+            Game Insight: Insufficient data (&lt; 3 min)
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const fg3 = sus.fg3Stats;
+  const starCold = sus.starCold;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-[#2a2a3e]">
+      {/* Header — clickable to toggle */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between text-[10px] font-bold text-[#6b7280] uppercase tracking-wider mb-2 hover:text-[#ededed] transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          <span className="text-xs">{expanded ? '▼' : '▶'}</span>
+          Game Insight
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="space-y-2">
+          {/* Away team row */}
+          <TeamInsightRow
+            abbr={game.awayTeam.abbr}
+            team={sus.away}
+            fg3={fg3?.away}
+          />
+          {/* Home team row */}
+          <TeamInsightRow
+            abbr={game.homeTeam.abbr}
+            team={sus.home}
+            fg3={fg3?.home}
+          />
+
+          {/* Star Watch — only when stars are cold */}
+          {starCold && starCold.length > 0 && (
+            <div className="mt-1 pt-2 border-t border-[#2a2a3e]/50">
+              <div className="text-[10px] text-[#f0b90b] mb-1 font-bold">Star Watch</div>
+              <div className="space-y-0.5">
+                {starCold.map((star) => (
+                  <div key={star.name} className="text-[10px] text-[#f0b90b]/90">
+                    <span>⬇ {star.name} ({star.teamAbbr}): {star.currentPts} pts in {Math.round(star.minutesPlayed)} min — pacing {star.pacedPts.toFixed(1)} ppg (season: {star.seasonPpg.toFixed(1)})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamInsightRow({
+  abbr,
+  team,
+  fg3,
+}: {
+  abbr: string;
+  team: TeamSustainability;
+  fg3?: { fg3Pct: number; fg3a: number; fg3m: number };
+}) {
+  const processBarWidth = (team.processScore / 10) * 100;
+
+  return (
+    <div className="space-y-1">
+      {/* Team name + process bar + numeric score */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-bold text-[#ededed] w-8">{abbr}</span>
+        <div className="flex-1 h-2 bg-[#2a2a3e] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${processBarWidth}%`,
+              background: team.processScore >= 6 ? '#16c784' : team.processScore >= 4 ? '#f0b90b' : '#ea3943',
+            }}
+          />
+        </div>
+        <span
+          className="text-[10px] font-mono font-bold"
+          style={{
+            color: team.processScore >= 6 ? '#16c784' : team.processScore >= 4 ? '#f0b90b' : '#ea3943',
+          }}
+        >
+          {team.processScore.toFixed(1)}
+        </span>
+      </div>
+      {/* Scoring source breakdown */}
+      <div className="flex gap-2 text-[10px] text-[#6b7280] pl-10">
+        <span>Paint {Math.round(team.paintDependency * 100)}%</span>
+        <span className="text-[#2a2a3e]">|</span>
+        <span className={team.threePtDependency > 0.45 ? 'text-[#ea3943]' : ''}>
+          3PT {Math.round(team.threePtDependency * 100)}%
+        </span>
+        <span className="text-[#2a2a3e]">|</span>
+        <span>FT {Math.round(team.ftDependency * 100)}%</span>
+      </div>
+      {/* 3PT Stats line */}
+      {fg3 && fg3.fg3a > 0 && (
+        <div className="text-[10px] pl-10">
+          <span className="text-[#6b7280]">3PT: </span>
+          <span className="font-mono font-bold" style={{
+            color: fg3.fg3Pct > 0.40 ? '#16c784' : fg3.fg3Pct >= 0.33 ? '#f0b90b' : '#ea3943',
+          }}>
+            {fg3.fg3m}/{fg3.fg3a} ({(fg3.fg3Pct * 100).toFixed(1)}%)
+          </span>
         </div>
       )}
     </div>

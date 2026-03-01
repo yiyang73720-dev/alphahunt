@@ -12,6 +12,7 @@ export interface NBAGame {
   startTime: string;
   arena?: string;
   broadcast?: string;
+  sustainability?: import('./sustainability').SustainabilityMetrics;
 }
 
 export interface TeamInfo {
@@ -196,6 +197,20 @@ export interface DashboardState {
   odds: Record<string, GameOdds>;
   lastUpdate: string;
   isLive: boolean;
+}
+
+// ========================================
+// Star Cold Factor
+// ========================================
+
+export interface StarColdInfo {
+  name: string;
+  teamAbbr: string;
+  currentPts: number;
+  minutesPlayed: number;
+  pacedPts: number;
+  seasonPpg: number;
+  coldPct: number;
 }
 
 // ========================================

@@ -1,4 +1,4 @@
-import { fetchScoreboard, fetchBoxScore, fetchOdds, teamAbbrFromName, TEAM_WIN_PCT } from '../nba-api';
+import { fetchScoreboard, fetchBoxScore, fetchOdds, teamAbbrFromName, TEAM_WIN_PCT, parseMinutes } from '../nba-api';
 import { calculateSignals, getElapsedMins } from '../signals';
 import { calculateDogSignals } from './dog-signals';
 import {
@@ -132,7 +132,7 @@ async function runScanCycle(): Promise<{ signals: Signal[]; newSignals: Signal[]
         .slice(0, 10)
         .map((p) => ({
           name: p.name, teamAbbr: p.teamAbbr,
-          points: p.points, minutes: parseFloat(p.minutes) || 0,
+          points: p.points, minutes: parseMinutes(p.minutes),
         }));
     }
 

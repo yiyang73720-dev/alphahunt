@@ -122,6 +122,17 @@ interface NbaCdnBoxPlayer {
   };
 }
 
+// Parse NBA CDN minutes string — handles ISO 8601 "PT07M59.00S" and "MM:SS" formats
+export function parseMinutes(raw: string): number {
+  if (!raw) return 0;
+  const iso = raw.match(/PT(\d+)M([\d.]+)S/);
+  if (iso) return parseInt(iso[1]) + parseFloat(iso[2]) / 60;
+  const parts = raw.split(':');
+  if (parts.length === 2) return parseInt(parts[0]) + parseInt(parts[1]) / 60;
+  const n = parseFloat(raw);
+  return isNaN(n) ? 0 : n;
+}
+
 export async function fetchBoxScore(gameId: string) {
   const url = `https://cdn.nba.com/static/json/liveData/boxscore/boxscore_${gameId}.json`;
   const res = await fetch(url, { next: { revalidate: 15 } });

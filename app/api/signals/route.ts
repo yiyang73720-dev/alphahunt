@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { fetchScoreboard, fetchBoxScore, fetchOdds, teamAbbrFromName, TEAM_WIN_PCT } from '@/lib/nba-api';
+import { fetchScoreboard, fetchBoxScore, fetchOdds, teamAbbrFromName, TEAM_WIN_PCT, parseMinutes } from '@/lib/nba-api';
 import { calculateSignals, getElapsedMins } from '@/lib/signals';
 import { calculateDogSignals } from '@/lib/scanner/dog-signals';
-import { GameOdds, NBAGame } from '@/lib/types';
+import { computeSustainability } from '@/lib/sustainability';
+import { GameOdds, NBAGame, NBA_STARS, StarColdInfo } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,8 +107,73 @@ export async function GET() {
           name: p.name,
           teamAbbr: p.teamAbbr,
           points: p.points,
-          minutes: parseFloat(p.minutes) || 0,
+          minutes: parseMinutes(p.minutes),
         }));
+    }
+
+    // Compute sustainability metrics for live games with box scores
+    for (const game of liveGames) {
+      if (game.homeTeam.stats && game.awayTeam.stats) {
+        const elapsedMins = getElapsedMins(game.period, game.clock);
+        if (elapsedMins >= 3) {
+          game.sustainability = computeSustainability(
+            game.homeTeam.stats,
+            game.awayTeam.stats,
+            game.homeTeam.score,
+            game.awayTeam.score,
+            elapsedMins,
+          );
+        }
+      }
+    }
+
+    // Compute star cold factor for live games
+    // Build full player map (not just top 10) for star matching
+    const allPlayersMap: Record<string, { name: string; teamAbbr: string; points: number; minutes: number }[]> = {};
+    for (let i = 0; i < liveGames.length; i++) {
+      const game = liveGames[i];
+      const box = boxScores[i];
+      if (!box) continue;
+      allPlayersMap[game.gameId] = [
+        ...(box.homePlayers || []).map((p: { name: string; points: number; minutes: string }) => ({
+          name: p.name, teamAbbr: game.homeTeam.abbr,
+          points: p.points, minutes: parseMinutes(p.minutes),
+        })),
+        ...(box.awayPlayers || []).map((p: { name: string; points: number; minutes: string }) => ({
+          name: p.name, teamAbbr: game.awayTeam.abbr,
+          points: p.points, minutes: parseMinutes(p.minutes),
+        })),
+      ];
+    }
+
+    for (const game of liveGames) {
+      if (!game.sustainability) continue;
+      const players = allPlayersMap[game.gameId];
+      if (!players) continue;
+
+      const coldStars: StarColdInfo[] = [];
+      for (const star of NBA_STARS) {
+        const player = players.find((p) => p.name === star.name);
+        if (!player || player.minutes < 8 || player.minutes <= 0) continue;
+
+        const pacedPts = (player.points / player.minutes) * 36;
+        const coldPct = (pacedPts - star.ppg) / star.ppg;
+        if (coldPct < -0.20) {
+          coldStars.push({
+            name: star.name,
+            teamAbbr: player.teamAbbr,
+            currentPts: player.points,
+            minutesPlayed: Math.round(player.minutes * 10) / 10,
+            pacedPts: Math.round(pacedPts * 10) / 10,
+            seasonPpg: star.ppg,
+            coldPct: Math.round(coldPct * 1000) / 1000,
+          });
+        }
+      }
+
+      if (coldStars.length > 0) {
+        game.sustainability.starCold = coldStars;
+      }
     }
 
     const signals = calculateSignals(games, oddsMap, topScorersMap, TEAM_WIN_PCT);
